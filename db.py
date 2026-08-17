@@ -1,0 +1,61 @@
+import atexit
+import datetime
+import os
+from dotenv import load_dotenv
+
+from sqlalchemy import DateTime, Integer, String, func
+from sqlalchemy.engine import create_engine
+from sqlalchemy.orm import (DeclarativeBase, MappedColumn, mapped_column,
+                            sessionmaker)
+
+load_dotenv()
+
+POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "secret")
+POSTGRES_DB = os.getenv("POSTGRES_DB", "app")
+POSTGRES_HOST = os.getenv("POSTGRES_HOST", "127.0.0.1")
+POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5431")
+
+
+PG_DSN = (
+    f"postgresql://"
+    f"{POSTGRES_USER}:{POSTGRES_PASSWORD}@"
+    f"{POSTGRES_HOST}:{POSTGRES_PORT}/"
+    f"{POSTGRES_DB}"
+)
+
+
+engine = create_engine(PG_DSN)
+Session = sessionmaker(bind=engine)
+atexit.register(engine.dispose)
+
+
+class Base(DeclarativeBase):
+    id: MappedColumn[int] = mapped_column(Integer ,primary_key=True)
+
+    @property
+    def id_dict(self):
+        return {"id": self.id}
+
+class Adverts(Base):
+    __tablename__ = "adverts"
+
+    header: MappedColumn[str] = mapped_column(String(50),)
+    description: MappedColumn[str] = mapped_column(String(255))
+    created_at: MappedColumn[datetime.datetime] = mapped_column(
+        DateTime, server_default=func.now()
+    )
+    owner: MappedColumn[str] = mapped_column(String(20))
+
+    @property
+    def dict(self):
+        return {
+            "id": self.id,
+            "header": self.header,
+            "description": self.description,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "owner": self.owner,
+        }
+
+Base.metadata.create_all(engine)
+
